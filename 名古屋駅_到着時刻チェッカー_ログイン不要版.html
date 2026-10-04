@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>名古屋駅 到着時刻チェッカー（ログイン不要版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F7F9; --surface:#FFFFFF; --ink:#1C2230; --muted:#5E6677; --line:#D9DDE5;
+  --meijo:#7B3F98; --tokaido:#E2611C; --chuo:#1F7A5A; --shin:#1C5FB8; --warn:#B3261E;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171D; --surface:#1D2129; --ink:#E9ECF2; --muted:#9AA2B2; --line:#323846;
+    --meijo:#B07CCB; --tokaido:#F08A50; --chuo:#4CB98F; --shin:#6FA3E8; --warn:#F2827A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171D; --surface:#1D2129; --ink:#E9ECF2; --muted:#9AA2B2; --line:#323846;
+  --meijo:#B07CCB; --tokaido:#F08A50; --chuo:#4CB98F; --shin:#6FA3E8; --warn:#F2827A;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
+  line-height:1.6;font-variant-numeric:tabular-nums}
+main{max-width:640px;margin:0 auto;padding:24px 18px 48px}
+h1{font-size:1.35rem;margin:0 0 4px;font-weight:700}
+.lead{color:var(--muted);margin:0 0 24px;font-size:.92rem}
+h2{font-size:1.05rem;margin:0 0 12px}
+section{margin-bottom:28px}
+
+.board{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+.dep{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.dep label{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:4px}
+input[type=time]{font:inherit;font-size:1.8rem;font-weight:700;color:var(--ink);background:var(--bg);
+  border:2px solid var(--meijo);border-radius:10px;padding:4px 10px;width:9.5rem}
+button,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);
+  border-radius:8px;padding:8px 12px;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--shin);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+
+/* route strip */
+.route{margin-top:22px;position:relative;padding-left:26px}
+.stop{position:relative;padding:2px 0 14px}
+.stop::before{content:"";position:absolute;left:-22px;top:6px;width:12px;height:12px;border-radius:50%;
+  background:var(--surface);border:3px solid var(--c,var(--ink))}
+.seg-line{position:absolute;left:-17px;width:4px;border-radius:2px}
+.stop .t{font-size:1.15rem;font-weight:700;margin-right:8px}
+.stop .n{color:var(--muted);font-size:.92rem}
+.leg{font-size:.82rem;color:var(--muted);margin:-8px 0 10px}
+.arrive{margin-top:4px;padding:14px 16px;border-radius:10px;background:var(--bg)}
+.arrive .big{font-size:2.6rem;font-weight:700;line-height:1.1;letter-spacing:.01em}
+.arrive .via{font-weight:700}
+.arrive .shin{margin-top:8px;color:var(--shin);font-weight:700;font-size:.95rem}
+.empty{color:var(--warn);font-size:.95rem}
+
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{font-weight:400;color:var(--muted);font-size:.82rem}
+.tag{display:inline-block;font-size:.8rem;font-weight:700;color:#fff;border-radius:4px;padding:1px 7px}
+.tag.tokaido{background:var(--tokaido)} .tag.chuo{background:var(--chuo)}
+tr.best td{font-weight:700}
+
+details{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px 18px;margin-bottom:14px}
+summary{cursor:pointer;padding:12px 0;font-weight:700}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:16px}
+.grid label{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:4px}
+.grid input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 10px;width:100%}
+textarea{width:100%;min-height:150px;font:inherit;font-size:.9rem;color:var(--ink);background:var(--bg);
+  border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical}
+.tt{padding-bottom:16px}
+.tt h3{font-size:.95rem;margin:12px 0 6px;display:flex;gap:8px;align-items:center}
+.hint{font-size:.85rem;color:var(--muted);margin:4px 0 8px}
+.count{font-size:.8rem;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;align-items:center}
+.chips .lbl{font-size:.82rem;color:var(--muted);margin-right:4px}
+.chips button{padding:4px 10px;font-weight:700;border-color:var(--meijo);color:var(--meijo);background:transparent}
+.chips button[aria-pressed=true]{background:var(--meijo);color:#fff}
+.tag.meijo{background:var(--meijo)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:16px}
+.saved{font-size:.85rem;color:var(--chuo);min-height:1.2em}
+@media (max-width:420px){ .grid{grid-template-columns:1fr} .arrive .big{font-size:2.2rem} }
+</style>
+</head>
+<body>
+<main>
+  <h1>名古屋駅 到着時刻チェッカー</h1>
+  <p class="lead">瑞穂運動場東から地下鉄名城線で金山へ。乗る地下鉄を選ぶと、東海道線（普通・快速系）と中央線のうち、いちばん早く名古屋駅に着く電車がわかります。</p>
+
+  <section class="board" aria-live="polite">
+    <div class="dep">
+      <label>瑞穂運動場東 発
+        <input type="time" id="depTime">
+      </label>
+      <button id="nowBtn" type="button">次の地下鉄</button>
+      <div class="seg" role="group" aria-label="ダイヤ">
+        <button type="button" id="dayW" aria-pressed="true">平日</button>
+        <button type="button" id="dayH" aria-pressed="false">土休日</button>
+      </div>
+    </div>
+    <div class="chips" id="chips" aria-label="瑞穂運動場東の発車時刻"></div>
+    <div id="result"></div>
+  </section>
+
+  <section>
+    <h2>乗れる候補</h2>
+    <div id="cands"></div>
+  </section>
+
+  <details id="setDetails">
+    <summary>所要時間の設定</summary>
+    <div class="grid">
+      <label>地下鉄 瑞穂運動場東→金山（分）<input type="number" id="sSub" min="1" max="60"></label>
+      <label>金山での乗換（分）<input type="number" id="sXfer" min="0" max="30"></label>
+      <label>東海道線 普通 金山→名古屋（分）<input type="number" id="sTok" min="1" max="30"></label>
+      <label>東海道線 快速系 金山→名古屋（分）<input type="number" id="sTokR" min="1" max="30"></label>
+      <label>中央線 金山→名古屋（分）<input type="number" id="sChu" min="1" max="30"></label>
+      <label>名古屋での新幹線乗換（分）<input type="number" id="sShin" min="0" max="40"></label>
+    </div>
+  </details>
+
+  <details id="ttDetails">
+    <summary>時刻表の確認・修正</summary>
+    <div class="tt">
+      <p class="hint">登録済みの時刻表です（地下鉄は瑞穂運動場東発、JRは金山発 名古屋方面）。特急しなのとホームライナーは別料金のため除いています。ダイヤ改正のときはここを書き換えてください。「6:05 6:18」のような書き方でも、駅の時刻表のように「6 05 18 31」（先頭が時、続きが分）の書き方でも読み取れます。</p>
+      <h3><span class="tag meijo">名城線</span>瑞穂運動場東 右回り・平日 <span class="count" id="c_subW"></span></h3>
+      <textarea id="tt_subW"></textarea>
+      <h3><span class="tag meijo">名城線</span>瑞穂運動場東 右回り・土休日 <span class="count" id="c_subH"></span></h3>
+      <textarea id="tt_subH"></textarea>
+      <p class="hint">東海道線は、尾頭橋に停まる普通と、通過する区間快速・快速・新快速・特別快速を分けています。</p>
+      <h3><span class="tag tokaido">東海道線</span>普通・平日 <span class="count" id="c_tokW"></span></h3>
+      <textarea id="tt_tokW" placeholder="例）&#10;6 05 18 31 44 57&#10;7 08 15 22 30"></textarea>
+      <h3><span class="tag tokaido">東海道線</span>快速系・平日 <span class="count" id="c_tokRW"></span></h3>
+      <textarea id="tt_tokRW"></textarea>
+      <h3><span class="tag tokaido">東海道線</span>普通・土休日 <span class="count" id="c_tokH"></span></h3>
+      <textarea id="tt_tokH"></textarea>
+      <h3><span class="tag tokaido">東海道線</span>快速系・土休日 <span class="count" id="c_tokRH"></span></h3>
+      <textarea id="tt_tokRH"></textarea>
+      <h3><span class="tag chuo">中央線</span>平日 <span class="count" id="c_chuW"></span></h3>
+      <textarea id="tt_chuW"></textarea>
+      <h3><span class="tag chuo">中央線</span>土休日 <span class="count" id="c_chuH"></span></h3>
+      <textarea id="tt_chuH"></textarea>
+    </div>
+    <div class="actions">
+      <button type="button" id="saveBtn">保存する</button>
+      <span class="hint" id="syncMsg" style="margin:0">ログイン不要版：設定はこの端末のブラウザ内に保存されます。</span>
+      <span class="saved" id="savedMsg"></span>
+    </div>
+  </details>
+</main>
+
+<script>
+const KEY = 'nagoya-norikae-v3';
+const DEF_TT = {"subW": "5 30 39 55\n6 07 18 29 39 47 55\n7 01 07 14 21 29 35 41 47 53 58\n8 04 10 16 22 29 35 42 48 55\n9 03 11 19 27 36 46 56\n10 06 16 26 36 46 56\n11 06 16 26 36 46 56\n12 06 16 26 36 46 56\n13 06 16 26 36 46 56\n14 06 16 26 36 46 56\n15 06 16 26 36 45 56\n16 03 10 17 24 31 38 45 52 59\n17 06 13 20 27 34 41 48 55\n18 02 09 16 23 30 37 44 51 58\n19 05 12 19 26 33 40 47 54\n20 01 08 15 22 29 37 43 50 58\n21 04 09 18 25 30 37 43 49 59\n22 09 19 29 39 49 59\n23 09 19 29 39 49\n24 04", "subH": "5 30 39 55\n6 07 17 29 44 57\n7 09 19 29 39 49 59\n8 09 19 29 39 49 59\n9 09 19 29 39 49 59\n10 09 19 29 39 49 59\n11 09 19 29 39 49 59\n12 09 19 29 39 49 59\n13 09 19 29 39 49 59\n14 09 19 29 39 49 59\n15 09 19 29 39 49 59\n16 09 19 29 39 49 59\n17 09 19 29 39 49 59\n18 09 19 29 39 49 59\n19 09 19 29 39 49 59\n20 09 19 29 39 49 59\n21 09 19 29 39 49 59\n22 09 19 29 39 49 59\n23 09 19 29 39 49\n24 04", "tokW": "5 58\n6 15 25 35 50\n7 09 20 41\n8 01 18 32 44 58\n9 16 28 41 51\n10 05 20 33 50\n11 04 19 34 50\n12 04 19 34 50\n13 04 19 34 50\n14 04 19 34 50\n15 04 19 34 50\n16 04 20 34 50\n17 04 20 34 50\n18 08 20 37 51\n19 07 20 37 51\n20 04 19 33 50\n21 05 21 34 51\n22 05 28 43 59\n23 17 38 54", "tokRW": "6 39 54\n7 05 12 25 28 45 50 54\n8 05 09 14 21 25 28 36 40 48 53\n9 01 06 12 20 24 31 38 45 54\n10 09 24 39 54\n11 09 24 39 54\n12 09 24 39 54\n13 09 24 39 54\n14 09 24 39 54\n15 09 24 39 54\n16 09 24 39 54\n17 09 24 39 54\n18 04 11 15 24 33 44 47 54\n19 03 11 17 24 33 42 45 54\n20 08 11 24 38 41 53\n21 08 12 25 38 41 55\n22 09 24 39 55\n23 07 24 44", "tokH": "5 58\n6 15 25 35 50\n7 06 19 46 53\n8 08 22 38 53\n9 16 22 43 51\n10 05 20 33 49\n11 04 19 34 50\n12 04 19 34 50\n13 04 19 34 50\n14 04 19 34 50\n15 04 19 34 50\n16 04 20 34 50\n17 04 20 34 50\n18 03 20 35 50\n19 03 20 33 50\n20 03 19 33 50\n21 05 21 34 51\n22 05 28 43 59\n23 17 38 54", "tokRH": "6 39 54\n7 09 23 29 42 56\n8 00 12 15 26 30 42 56\n9 00 12 26 32 39 54\n10 09 12 24 39 43 54\n11 08 11 23 39 54 57\n12 09 24 39 54\n13 09 24 39 54\n14 09 24 39 54\n15 09 24 39 54\n16 09 24 39 54\n17 07 11 23 38 41 54\n18 07 11 24 38 41 54\n19 07 11 24 37 41 54\n20 07 11 24 38 41 53\n21 08 12 25 38 41 55\n22 09 24 39 55\n23 07 24 44", "chuW": "5 29 56\n6 06 16 27 39 51\n7 01 10 18 27 35 40 45 50 54 59\n8 03 07 11 15 19 23 28 33 37 41 46 51 59\n9 03 10 18 25 33 40 46 53\n10 01 08 16 24 32 42 52\n11 02 12 22 32 42 52\n12 02 12 22 32 42 52\n13 02 12 22 32 42 52\n14 02 12 22 32 42 52\n15 02 11 19 27 35 43 51 59\n16 07 16 25 32 39 46 53 58\n17 07 11 19 25 33 40 46 51\n18 00 08 13 20 27 32 40 46 52 59\n19 07 15 20 27 32 40 46 52 59\n20 07 15 20 27 32 40 46 52 59\n21 06 12 24 30 40 50 58\n22 06 15 25 35 45 56\n23 07 17 27 37 47", "chuH": "5 29 56\n6 06 16 27 39 51\n7 01 11 19 27 34 41 48 54\n8 01 09 16 22 28 35 43 51 57\n9 03 10 18 25 33 40 46 53\n10 01 08 16 24 32 42 52\n11 02 12 22 32 42 52\n12 02 12 22 32 42 52\n13 02 12 22 32 42 52\n14 02 12 22 32 42 52\n15 02 11 19 27 35 43 51 59\n16 07 16 25 32 39 46 53 58\n17 07 11 19 25 33 40 46 51\n18 00 08 13 20 27 32 40 46 52 59\n19 07 15 20 27 32 40 46 52 59\n20 07 15 20 27 32 40 46 52 59\n21 06 12 24 30 40 50 58\n22 06 15 25 35 45 56\n23 07 17 27 37 47"};
+const TT_VER = 2;
+const DEF = { ttVer:TT_VER, sub:15, xfer:3, tok:6, tokR:4, chu:5, shin:10, tt:{...DEF_TT}, savedAt:0 };
+let state = load();
+let dayType = (()=>{ const d=new Date().getDay(); return (d===0||d===6)?'H':'W'; })();
+
+function merge(p){
+  const tt={...DEF_TT}; const pt=(p.ttVer===TT_VER)?(p.tt||{}):{};
+  Object.keys(pt).forEach(k=>{ if(typeof pt[k]==='string' && pt[k].trim()) tt[k]=pt[k]; });
+  return {...DEF,...p,tt,ttVer:TT_VER};
+}
+function load(){
+  try{ const r = localStorage.getItem(KEY); if(r) return merge(JSON.parse(r)); }catch(e){}
+  try{ const o = localStorage.getItem('nagoya-norikae-v2'); if(o){ const p=JSON.parse(o); const q=merge(p); q.savedAt=0; return q; } }catch(e){}
+  return JSON.parse(JSON.stringify(DEF));
+}
+function saveLocal(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); return true; }catch(e){ return false; } }
+async function save(){ state.savedAt = Date.now(); return saveLocal(); }
+let autoT; function autoSave(){ clearTimeout(autoT); autoT=setTimeout(()=>{ save(); },1200); }
+
+const pad = n => String(n).padStart(2,'0');
+const fmt = m => { m=((m%1440)+1440)%1440; return Math.floor(m/60)+':'+pad(m%60); };
+const toMin = s => { const [h,m]=s.split(':').map(Number); return h*60+m; };
+
+// 時刻表テキストを分の配列に
+function parseTT(text){
+  const out = new Set();
+  const z = text.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0)).replace(/[：]/g,':');
+  for(const raw of z.split(/\n/)){
+    const line = raw.trim(); if(!line) continue;
+    const hm = [...line.matchAll(/(\d{1,2}):(\d{2})/g)];
+    if(hm.length){ hm.forEach(x=>{ const h=+x[1], m=+x[2]; if(h<30&&m<60) out.add(h*60+m); }); continue; }
+    const nums = line.match(/\d{1,2}/g); if(!nums||nums.length<2) continue;
+    const h = +nums[0];
+    nums.slice(1).forEach(x=>{ const m=+x; if(h<30&&m<60) out.add(h*60+m); });
+  }
+  return [...out].sort((a,b)=>a-b);
+}
+
+function compute(){
+  const depStr = document.getElementById('depTime').value; if(!depStr) return null;
+  const dep = toMin(depStr);
+  const kanaArr = dep + state.sub;
+  const ready = kanaArr + state.xfer;
+  const lines = [
+    {key:'tok', name:'東海道線', sub:'普通', cls:'tokaido', ride:state.tok, times:parseTT(state.tt['tok'+dayType])},
+    {key:'tokR', name:'東海道線', sub:'快速系', cls:'tokaido', ride:state.tokR, times:parseTT(state.tt['tokR'+dayType])},
+    {key:'chu', name:'中央線', sub:'', cls:'chuo', ride:state.chu, times:parseTT(state.tt['chu'+dayType])}
+  ];
+  const cands = [];
+  lines.forEach(L=>{
+    L.times.filter(t=>t>=ready).slice(0,3).forEach(t=>cands.push({...L, kdep:t, narr:t+L.ride}));
+  });
+  cands.sort((a,b)=>a.narr-b.narr || a.kdep-b.kdep);
+  return {dep, kanaArr, ready, cands, lines};
+}
+
+function render(){
+  const r = compute(); const res = document.getElementById('result'); const cd = document.getElementById('cands');
+  if(!r){ res.innerHTML=''; cd.innerHTML=''; return; }
+  const empty = r.lines.every(L=>L.times.length===0);
+  const best = r.cands[0]; const lbl = c => c.name + (c.sub?'（'+c.sub+'）':'');
+  let html = `<div class="route">
+    <div class="seg-line" style="top:14px;height:44px;background:var(--meijo)"></div>
+    <div class="stop" style="--c:var(--meijo)"><span class="t">${fmt(r.dep)}</span><span class="n">瑞穂運動場東 発（名城線）</span></div>
+    <div class="leg">約${state.sub}分</div>
+    <div class="stop" style="--c:var(--meijo)"><span class="t">${fmt(r.kanaArr)}</span><span class="n">金山 着 → ${fmt(r.ready)} 以降の電車に乗車可</span></div>`;
+  if(best){
+    html += `<div class="stop" style="--c:var(--${best.cls})"><span class="t">${fmt(best.kdep)}</span><span class="n">金山 発（${lbl(best)}）</span></div>
+    <div class="arrive">
+      <div class="n" style="color:var(--muted);font-size:.85rem">名古屋 着</div>
+      <div class="big">${fmt(best.narr)}</div>
+      <div><span class="tag ${best.cls}">${best.name}</span> ${best.sub||""}</div>
+      <div class="shin">新幹線は ${fmt(best.narr+state.shin)} 以降の発車を予約</div>
+    </div>`;
+  } else if(empty){
+    html += `<p class="empty">時刻表がまだ登録されていません。下の「時刻表の登録」から金山発の時刻を入れてください。</p>`;
+  } else {
+    html += `<p class="empty">${fmt(r.ready)} 以降の電車が時刻表にありません。${dayType==='W'?'平日':'土休日'}の時刻表を確認してください。</p>`;
+  }
+  html += `</div>`;
+  res.innerHTML = html;
+
+  if(!r.cands.length){ cd.innerHTML = '<p class="hint">候補はまだありません。</p>'; return; }
+  cd.innerHTML = `<table><thead><tr><th>路線</th><th>金山 発</th><th>名古屋 着</th><th>新幹線</th></tr></thead><tbody>${
+    r.cands.map((c,i)=>`<tr class="${i===0?'best':''}"><td><span class="tag ${c.cls}">${c.name}</span> ${c.sub}</td><td>${fmt(c.kdep)}</td><td>${fmt(c.narr)}</td><td>${fmt(c.narr+state.shin)}〜</td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+// 初期化
+function nowMin(){ const d=new Date(); return d.getHours()*60+d.getMinutes(); }
+function subTimes(){ return parseTT(state.tt['sub'+dayType]); }
+function setNow(){
+  const n=nowMin(); const nxt=subTimes().find(t=>t>=n);
+  const m = nxt!==undefined ? nxt : n;
+  document.getElementById('depTime').value = pad(Math.floor(m/60)%24)+':'+pad(m%60);
+}
+function renderChips(){
+  const box=document.getElementById('chips'); const cur=document.getElementById('depTime').value;
+  const curM = cur?toMin(cur):-1; const n=nowMin();
+  const list=subTimes().filter(t=>t>=n).slice(0,6);
+  if(!list.length){ box.innerHTML='<span class="lbl">本日の地下鉄はもうありません</span>'; return; }
+  box.innerHTML='<span class="lbl">この後の地下鉄</span>'+list.map(t=>`<button type="button" data-m="${t}" aria-pressed="${t===curM}">${fmt(t)}</button>`).join('');
+  box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    const m=+b.dataset.m; document.getElementById('depTime').value=pad(Math.floor(m/60)%24)+':'+pad(m%60); render(); renderChips();
+  }));
+}
+function setDay(t){ dayType=t; document.getElementById('dayW').setAttribute('aria-pressed',t==='W'); document.getElementById('dayH').setAttribute('aria-pressed',t==='H'); render(); renderChips(); }
+const map = {sSub:'sub',sXfer:'xfer',sTok:'tok',sTokR:'tokR',sChu:'chu',sShin:'shin'};
+Object.entries(map).forEach(([id,k])=>{
+  const el=document.getElementById(id); el.value=state[k];
+  el.addEventListener('input',()=>{ const v=parseInt(el.value,10); if(!isNaN(v)&&v>=0){ state[k]=v; autoSave(); render(); } });
+});
+const TTK=['subW','subH','tokW','tokH','tokRW','tokRH','chuW','chuH'];
+const updCount=k=>{ document.getElementById('c_'+k).textContent = parseTT(state.tt[k]).length+'本'; };
+function fillUI(){
+  Object.entries(map).forEach(([id,k])=>{ document.getElementById(id).value=state[k]; });
+  TTK.forEach(k=>{ document.getElementById('tt_'+k).value=state.tt[k]; updCount(k); });
+}
+TTK.forEach(k=>{
+  const ta=document.getElementById('tt_'+k);
+  ta.addEventListener('input',()=>{ state.tt[k]=ta.value; updCount(k); render(); renderChips(); autoSave(); });
+});
+fillUI();
+document.getElementById('saveBtn').addEventListener('click',async ()=>{
+  const ok=await save(); const m=document.getElementById('savedMsg');
+  m.textContent = ok ? 'この端末のブラウザに保存しました。' : 'このブラウザでは保存できませんでした。';
+  setTimeout(()=>m.textContent='',3000);
+});
+document.getElementById('depTime').addEventListener('input',()=>{render();renderChips();});
+document.getElementById('nowBtn').addEventListener('click',()=>{ setNow(); render(); renderChips(); });
+document.getElementById('dayW').addEventListener('click',()=>setDay('W'));
+document.getElementById('dayH').addEventListener('click',()=>setDay('H'));
+
+setDay(dayType); setNow(); render(); renderChips();
+setInterval(renderChips,60000);
+
+// ログイン不要版：設定はこの端末のブラウザ内(localStorage)に保存されます。
+</script>
+</body>
+</html>
